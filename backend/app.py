@@ -102,6 +102,36 @@ def get_projects():
     projects = db.get_projects(user_id)
     return jsonify(projects)
 
+@app.route('/api/projects/<int:project_id>/flow', methods=['GET'])
+@token_required
+def get_project_flow(project_id):
+    user_id = request.current_user['id']
+    from auth import db
+    
+    flow_data = db.get_project_flow(project_id, user_id)
+    
+    if not flow_data:
+        return jsonify({'flow': None}), 200
+        
+    return jsonify(flow_data)
+
+@app.route('/api/projects/<int:project_id>/flow', methods=['POST'])
+@token_required
+def save_project_flow(project_id):
+    user_id = request.current_user['id']
+    data = request.get_json()
+    
+    if 'flow' not in data:
+        return jsonify({'error': 'Flow data is required'}), 400
+        
+    from auth import db
+    success, message = db.save_project_flow(project_id, user_id, data['flow'])
+    
+    if not success:
+        return jsonify({'error': message}), 400
+        
+    return jsonify({'message': message}), 200
+
 @app.route('/api/projects', methods=['POST'])
 @token_required
 def create_project():

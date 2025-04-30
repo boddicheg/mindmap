@@ -2,6 +2,7 @@ import "./index.css";
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Projects from './pages/Projects';
+import Project from './pages/Project';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
@@ -44,6 +45,14 @@ function App() {
               <Sidebar />
               <div className="flex-1 overflow-auto">
                 <Settings />
+              </div>
+            </div>
+          } />
+          <Route path="/project/:projectId" element={
+            <div className="flex h-screen bg-gray-100">
+              <Sidebar />
+              <div className="flex-1 overflow-auto">
+                <Project />
               </div>
             </div>
           } />

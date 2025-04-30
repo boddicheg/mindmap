@@ -46,6 +46,7 @@ class Project(Base):
     
     # Relationship
     tags = relationship("Tag", back_populates="project", cascade="all, delete-orphan")
+    flows = relationship("ProjectFlow", back_populates="project", cascade="all, delete-orphan")
     
     def to_dict(self):
         return {
@@ -73,7 +74,25 @@ class Tag(Base):
             "name": self.name,
             "project_id": self.project_id
         }
+
+class ProjectFlow(Base):
+    __tablename__ = 'project_flows'
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
+    flow = Column(String, nullable=False)
+    last_updated = Column(String, default=lambda: str(datetime.datetime.now()))
     
+    # Relationship
+    project = relationship("Project", back_populates="flows")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "flow": self.flow,
+            "last_updated": self.last_updated
+        }
+
 class DBSession:
     def __init__(self, db_path) -> None:
         self.engine = create_engine(f'sqlite:///{db_path}')
@@ -184,6 +203,42 @@ class DBSession:
         project = self.session.query(Project).filter_by(id=project_id, user_id=user_id).first()
         if project:
             return project.to_dict()
+        return None
+    
+    def save_project_flow(self, project_id, user_id, flow_data):
+        # Check if project exists and belongs to user
+        project = self.session.query(Project).filter_by(id=project_id, user_id=user_id).first()
+        if not project:
+            return False, "Project not found or access denied"
+        
+        # Check if flow already exists for this project
+        existing_flow = self.session.query(ProjectFlow).filter_by(project_id=project_id).first()
+        
+        if existing_flow:
+            # Update existing flow
+            existing_flow.flow = flow_data
+            existing_flow.last_updated = str(datetime.datetime.now())
+        else:
+            # Create new flow
+            new_flow = ProjectFlow(
+                project_id=project_id,
+                flow=flow_data
+            )
+            self.session.add(new_flow)
+        
+        self.session.commit()
+        return True, "Flow saved successfully"
+    
+    def get_project_flow(self, project_id, user_id):
+        # Check if project exists and belongs to user
+        project = self.session.query(Project).filter_by(id=project_id, user_id=user_id).first()
+        if not project:
+            return None
+        
+        # Get flow data
+        flow = self.session.query(ProjectFlow).filter_by(project_id=project_id).first()
+        if flow:
+            return flow.to_dict()
         return None
     
     def update_project(self, project_id, user_id, data):

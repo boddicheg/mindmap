@@ -1,0 +1,14 @@
+{
+  "name": "mindmaps",
+  "version": "1.0.0",
+  "description": "Management tool for node-based maps and interactive diagrams",
+  "scripts": {
+    "start": "concurrently \"npm run frontend\" \"npm run backend\"",
+    "frontend": "cd app && npm run build -- --watch",
+    "backend": "cd backend && export FLASK_DEBUG=1 && python app.py",
+    "install": "cd app && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

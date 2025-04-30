@@ -74,6 +74,10 @@ class AuthService {
     return !!this.getToken();
   }
 
+  updateStoredUser(user: User): void {
+    this.setUser(user);
+  }
+
   private setToken(token: string): void {
     localStorage.setItem(this.tokenKey, token);
   }

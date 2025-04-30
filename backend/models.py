@@ -119,6 +119,38 @@ class DBSession:
         if user:
             return user.to_dict()
         return None
+        
+    def update_user_email(self, user_id, new_email):
+        # Check if email already exists
+        existing_user = self.session.query(User).filter_by(email=new_email).first()
+        
+        if existing_user and existing_user.id != user_id:
+            return False, "Email already in use by another account"
+            
+        user = self.session.query(User).filter_by(id=user_id).first()
+        
+        if not user:
+            return False, "User not found"
+            
+        user.email = new_email
+        self.session.commit()
+        
+        return True, "Email updated successfully"
+        
+    def delete_user(self, user_id):
+        user = self.session.query(User).filter_by(id=user_id).first()
+        
+        if not user:
+            return False
+            
+        # Delete all user's projects first (which will cascade delete tags)
+        self.session.query(Project).filter_by(user_id=user_id).delete()
+        
+        # Delete user
+        self.session.delete(user)
+        self.session.commit()
+        
+        return True
 
 # -----------------------------------------------------------------------------
 # Project methods

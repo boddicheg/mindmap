@@ -54,6 +54,45 @@ def login():
     result, status_code = g_auth.login(data)
     return jsonify(result), status_code
 
+# User routes
+@app.route('/api/user/profile', methods=['GET'])
+@token_required
+def get_user_profile():
+    return jsonify(request.current_user), 200
+
+@app.route('/api/user/update-email', methods=['PUT'])
+@token_required
+def update_email():
+    data = request.get_json()
+    if 'email' not in data:
+        return jsonify({'error': 'Email is required'}), 400
+        
+    user_id = request.current_user['id']
+    from auth import db
+    
+    success, message = db.update_user_email(user_id, data['email'])
+    
+    if not success:
+        return jsonify({'error': message}), 400
+        
+    # Get updated user data
+    user = db.get_user_by_id(user_id)
+    
+    return jsonify({'message': 'Email updated successfully', 'user': user}), 200
+
+@app.route('/api/user/delete-account', methods=['DELETE'])
+@token_required
+def delete_account():
+    user_id = request.current_user['id']
+    from auth import db
+    
+    success = db.delete_user(user_id)
+    
+    if not success:
+        return jsonify({'error': 'Failed to delete account'}), 500
+        
+    return jsonify({'message': 'Account deleted successfully'}), 200
+
 # Project routes
 @app.route('/api/projects', methods=['GET'])
 @token_required

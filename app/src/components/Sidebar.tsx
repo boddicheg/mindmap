@@ -1,17 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import {
   FolderIcon,
-  ArrowPathIcon,
   CogIcon,
-  ServerIcon,
   QuestionMarkCircleIcon,
-  BellIcon
+  BellIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
+import authService from '../services/authService';
 
 const navigation = [
-  { name: 'Projects', href: '/projects', icon: FolderIcon },
-  { name: 'Workflows', href: '/workflows', icon: ArrowPathIcon },
-  { name: 'Monitoring', href: '/monitoring', icon: ServerIcon },
+  { name: 'Projects', href: '/', icon: FolderIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];
 
@@ -42,9 +40,23 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 mt-auto">
-        <div className="flex items-center space-x-4">
-          <QuestionMarkCircleIcon className="h-6 w-6" />
-          <BellIcon className="h-6 w-6" />
+        <div className="flex flex-col">
+          <div className="pb-3 border-b border-gray-700">
+            <div className="flex items-center space-x-3 text-gray-300 hover:text-white transition-colors">
+              <UserCircleIcon className="h-8 w-8" />
+              <div className="text-sm">
+                <p className="font-medium truncate">{authService.getUser()?.username || 'User'}</p>
+                <p className="text-xs text-gray-400 truncate">{authService.getUser()?.email || ''}</p>
+              </div>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => authService.logout()}
+            className="mt-3 flex items-center text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </div>

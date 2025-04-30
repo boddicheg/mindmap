@@ -34,6 +34,45 @@ class User(Base):
             "email": self.email,
             "created_at": self.created_at
         }
+
+class Project(Base):
+    __tablename__ = 'projects'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    description = Column(String(500))
+    is_private = Column(Boolean, default=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    created_at = Column(String, default=lambda: str(datetime.datetime.now()))
+    
+    # Relationship
+    tags = relationship("Tag", back_populates="project", cascade="all, delete-orphan")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "is_private": self.is_private,
+            "user_id": self.user_id,
+            "created_at": self.created_at,
+            "tags": [tag.name for tag in self.tags]
+        }
+
+class Tag(Base):
+    __tablename__ = 'tags'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
+    
+    # Relationship
+    project = relationship("Project", back_populates="tags")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "project_id": self.project_id
+        }
     
 class DBSession:
     def __init__(self, db_path) -> None:
@@ -80,3 +119,72 @@ class DBSession:
         if user:
             return user.to_dict()
         return None
+
+# -----------------------------------------------------------------------------
+# Project methods
+    def create_project(self, user_id, name, description, is_private, tags):
+        # Create project
+        project = Project(
+            name=name,
+            description=description,
+            is_private=is_private,
+            user_id=user_id
+        )
+        
+        self.session.add(project)
+        self.session.flush()  # Get project ID before committing
+        
+        # Add tags (limit to 5)
+        for tag_name in tags[:5]:
+            tag = Tag(name=tag_name, project_id=project.id)
+            self.session.add(tag)
+        
+        self.session.commit()
+        return project.to_dict()
+    
+    def get_projects(self, user_id):
+        # Get user's projects
+        projects = self.session.query(Project).filter_by(user_id=user_id).all()
+        return [project.to_dict() for project in projects]
+    
+    def get_project(self, project_id, user_id):
+        # Get specific project if it belongs to the user
+        project = self.session.query(Project).filter_by(id=project_id, user_id=user_id).first()
+        if project:
+            return project.to_dict()
+        return None
+    
+    def update_project(self, project_id, user_id, data):
+        project = self.session.query(Project).filter_by(id=project_id, user_id=user_id).first()
+        if not project:
+            return None
+        
+        # Update project fields
+        if 'name' in data:
+            project.name = data['name']
+        if 'description' in data:
+            project.description = data['description']
+        if 'is_private' in data:
+            project.is_private = data['is_private']
+        
+        # Update tags if provided
+        if 'tags' in data:
+            # Remove existing tags
+            self.session.query(Tag).filter_by(project_id=project_id).delete()
+            
+            # Add new tags (limit to 5)
+            for tag_name in data['tags'][:5]:
+                tag = Tag(name=tag_name, project_id=project.id)
+                self.session.add(tag)
+        
+        self.session.commit()
+        return project.to_dict()
+    
+    def delete_project(self, project_id, user_id):
+        project = self.session.query(Project).filter_by(id=project_id, user_id=user_id).first()
+        if not project:
+            return False
+        
+        self.session.delete(project)  # This will cascade delete associated tags
+        self.session.commit()
+        return True

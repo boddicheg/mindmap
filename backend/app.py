@@ -41,10 +41,6 @@ def token_required(f):
         
     return decorated
 
-@app.route('/', methods=['GET'])
-def index():
-    return render_template(f'index.html')
-
 # Authentication routes
 @app.route('/api/auth/register', methods=['POST'])
 def register():
@@ -73,6 +69,14 @@ def get_projects():
         }
     ]
     return jsonify(projects)
+
+# Catch all route to handle client-side routing
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    if path.startswith('api/'):
+        return jsonify({"error": "Not found"}), 404
+    return render_template('index.html')
 
 if __name__ == '__main__':
     print("Starting server on port 1337")

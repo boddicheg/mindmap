@@ -1,26 +1,46 @@
 import "./index.css";
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Projects from './pages/Projects';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ProtectedRoute from './components/ProtectedRoute';
 import { useEffect } from "react";
+import authService from './services/authService';
 // import Project from './pages/Project';
 
 function App() {
   useEffect(() => {
-    console.log("Hello World");
+    console.log("App initialized");
   }, []);
+
+  // Check if user is authenticated
+  const isAuthenticated = authService.isAuthenticated();
 
   return (
     <BrowserRouter>
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <Login />
+        } />
+        <Route path="/register" element={
+          isAuthenticated ? <Navigate to="/" replace /> : <Register />
+        } />
 
-        <div className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<Projects />} />
-          </Routes>
-        </div>
-      </div>
+        {/* Protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={
+            <div className="flex h-screen bg-gray-100">
+              <Sidebar />
+              <div className="flex-1 overflow-auto">
+                <Projects />
+              </div>
+            </div>
+          } />
+          {/* Add more protected routes as needed */}
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }

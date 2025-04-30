@@ -17,6 +17,12 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import authService from '../services/authService';
+import CustomNode from '../components/nodes/CustomNode';
+
+// Node types definition
+const nodeTypes = {
+  custom: CustomNode,
+};
 
 // Initial nodes and edges for the flow
 const initialNodes: Node[] = [
@@ -28,7 +34,11 @@ const initialNodes: Node[] = [
   },
   {
     id: '2',
-    data: { label: 'Default Node' },
+    type: 'custom',
+    data: { 
+      label: 'Custom Node',
+      description: 'This is a custom node with editable header and description'
+    },
     position: { x: 100, y: 125 },
   },
   {
@@ -69,6 +79,10 @@ export default function Project() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
   
   // React Flow states
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -146,6 +160,8 @@ export default function Project() {
         
         const data = await response.json();
         setProject(data);
+        setNewName(data.name);
+        setNewDescription(data.description || '');
         
         // Fetch flow data
         await fetchProjectFlow(projectId);
@@ -211,6 +227,92 @@ export default function Project() {
       setSaving(false);
     }
   };
+
+  const handleUpdateProject = async (updateData: {name?: string, description?: string}) => {
+    if (!projectId || !project) return;
+    
+    try {
+      const token = authService.getToken();
+      
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update project');
+      }
+      
+      const updatedProject = await response.json();
+      setProject(updatedProject);
+      
+      // Show success message briefly
+      setSaveSuccess('Project updated successfully!');
+      setTimeout(() => {
+        setSaveSuccess('');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error updating project:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update project');
+      setTimeout(() => {
+        setError('');
+      }, 3000);
+    }
+  };
+  
+  const handleSaveName = () => {
+    if (newName.trim() === '') return;
+    handleUpdateProject({ name: newName });
+    setEditingName(false);
+  };
+  
+  const handleSaveDescription = () => {
+    handleUpdateProject({ description: newDescription });
+    setEditingDescription(false);
+  };
+
+  const handleUpdateNodeData = (nodeId: string, nodeData: {label?: string, description?: string}) => {
+    setNodes(nds => 
+      nds.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              ...nodeData
+            }
+          };
+        }
+        return node;
+      })
+    );
+  };
+  
+  // Create a new custom node
+  const addCustomNode = () => {
+    const newNodeId = `node-${nodes.length + 1}`;
+    const newNode = {
+      id: newNodeId,
+      type: 'custom',
+      position: { 
+        x: Math.random() * 300 + 50, 
+        y: Math.random() * 300 + 50 
+      },
+      data: { 
+        label: 'New Node', 
+        description: 'Click to edit description',
+        onLabelChange: (id: string, label: string) => handleUpdateNodeData(id, { label }),
+        onDescriptionChange: (id: string, description: string) => handleUpdateNodeData(id, { description })
+      }
+    };
+    
+    setNodes(nds => [...nds, newNode]);
+  };
   
   if (loading) {
     return (
@@ -253,11 +355,77 @@ export default function Project() {
   return (
     <div className="flex flex-col h-full">
       <div className="border-b p-4 bg-white flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold">{project.name}</h1>
-          {project.description && (
-            <p className="text-gray-600 mt-1">{project.description}</p>
-          )}
+        <div className="flex-1">
+          <div className="flex items-center">
+            {editingName ? (
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="text-2xl font-semibold w-full mr-2 border-b border-purple-400 focus:outline-none"
+                  autoFocus
+                />
+                <button 
+                  onClick={handleSaveName}
+                  className="text-green-500 hover:text-green-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <h1 className="text-2xl font-semibold">{project.name}</h1>
+                <button 
+                  onClick={() => setEditingName(true)}
+                  className="ml-2 text-gray-400 hover:text-purple-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center mt-1">
+            {editingDescription ? (
+              <div className="flex items-center w-full">
+                <input
+                  type="text"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  className="text-gray-600 w-full mr-2 border-b border-purple-400 focus:outline-none"
+                  placeholder="Add a description..."
+                  autoFocus
+                />
+                <button 
+                  onClick={handleSaveDescription}
+                  className="text-green-500 hover:text-green-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <p className="text-gray-600 min-h-[1.5rem]">
+                  {project.description || 'No description'}
+                </p>
+                <button 
+                  onClick={() => setEditingDescription(true)}
+                  className="ml-2 text-gray-400 hover:text-purple-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -305,6 +473,7 @@ export default function Project() {
             <ReactFlow
               nodes={nodes}
               edges={edges}
+              nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
@@ -313,7 +482,7 @@ export default function Project() {
               <Controls />
               <MiniMap />
               <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-              <Panel position="top-right">
+              <Panel position="top-right" className="flex gap-2">
                 <button 
                   className="px-3 py-1 bg-purple-600 text-white text-sm rounded"
                   onClick={() => {
@@ -326,6 +495,12 @@ export default function Project() {
                   }}
                 >
                   Add Node
+                </button>
+                <button 
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded"
+                  onClick={addCustomNode}
+                >
+                  Add Custom Node
                 </button>
               </Panel>
             </ReactFlow>

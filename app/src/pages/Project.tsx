@@ -17,42 +17,16 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import authService from '../services/authService';
-import CustomNode from '../components/nodes/CustomNode';
+import Note from '../components/nodes/Note';
 
 // Node types definition
 const nodeTypes = {
-  custom: CustomNode,
+  note: Note,
 };
 
-// Initial nodes and edges for the flow
-const initialNodes: Node[] = [
-  {
-    id: '1',
-    type: 'input',
-    data: { label: 'Input Node' },
-    position: { x: 250, y: 25 },
-  },
-  {
-    id: '2',
-    type: 'custom',
-    data: { 
-      label: 'Custom Node',
-      description: 'This is a custom node with editable header and description'
-    },
-    position: { x: 100, y: 125 },
-  },
-  {
-    id: '3',
-    type: 'output',
-    data: { label: 'Output Node' },
-    position: { x: 250, y: 250 },
-  },
-];
-
-const initialEdges: Edge[] = [
-  { id: 'e1-2', source: '1', target: '2', animated: true },
-  { id: 'e2-3', source: '2', target: '3', animated: true },
-];
+// Initial nodes and edges for the flow will be created in the component
+const initialNodes: Node[] = [];
+const initialEdges: Edge[] = [];
 
 interface ProjectData {
   id: string;
@@ -63,12 +37,7 @@ interface ProjectData {
   tags: string[];
 }
 
-interface FlowData {
-  id: number;
-  project_id: number;
-  flow: string;
-  last_updated: string;
-}
+
 
 export default function Project() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -87,6 +56,38 @@ export default function Project() {
   // React Flow states
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Handle single node deletion (called from within node)
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    setNodes(nds => nds.filter(node => node.id !== nodeId));
+    // Also remove edges connected to the deleted node
+    setEdges(eds => eds.filter(edge => 
+      edge.source !== nodeId && edge.target !== nodeId
+    ));
+  }, [setNodes, setEdges]);
+
+  // Handler for node data updates
+  const handleUpdateNodeData = useCallback((nodeId: string, nodeData: {label?: string, description?: string}) => {
+    console.log('Updating node:', nodeId, nodeData);
+    setNodes(nds => 
+      nds.map(node => {
+        if (node.id === nodeId) {
+          // Create new data object with all callbacks preserved
+          const newData = {
+            ...node.data,
+            ...nodeData,
+          };
+          return {
+            ...node,
+            data: newData
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+
   
   // Function to fetch project flow data
   const fetchProjectFlow = useCallback(async (projectId: string) => {
@@ -117,7 +118,18 @@ export default function Project() {
         try {
           const flowData = JSON.parse(data.flow);
           if (flowData.nodes && flowData.edges) {
-            setNodes(flowData.nodes);
+            // Add callback functions to all nodes from saved data
+            const nodesWithCallbacks = flowData.nodes.map((node: Node) => ({
+              ...node,
+              data: {
+                ...node.data,
+                onLabelChange: (id: string, label: string) => handleUpdateNodeData(id, { label }),
+                onDescriptionChange: (id: string, description: string) => handleUpdateNodeData(id, { description }),
+                onDelete: handleDeleteNode
+              }
+            }));
+            
+            setNodes(nodesWithCallbacks);
             setEdges(flowData.edges);
           }
         } catch (err) {
@@ -127,7 +139,7 @@ export default function Project() {
     } catch (error) {
       console.error('Error fetching project flow:', error);
     }
-  }, [navigate, setNodes, setEdges]);
+  }, [navigate, setNodes, setEdges, handleUpdateNodeData, handleDeleteNode]);
   
   useEffect(() => {
     if (!projectId) return;
@@ -178,6 +190,22 @@ export default function Project() {
   
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge({ ...params, animated: true }, eds));
+  }, [setEdges]);
+
+  // Handle node deletion when delete key is pressed
+  const onNodesDelete = useCallback((nodesToDelete: Node[]) => {
+    const nodeIds = nodesToDelete.map(node => node.id);
+    setNodes(nds => nds.filter(node => !nodeIds.includes(node.id)));
+    // Also remove edges connected to deleted nodes
+    setEdges(eds => eds.filter(edge => 
+      !nodeIds.includes(edge.source) && !nodeIds.includes(edge.target)
+    ));
+  }, [setNodes, setEdges]);
+
+  // Handle edge deletion
+  const onEdgesDelete = useCallback((edgesToDelete: Edge[]) => {
+    const edgeIds = edgesToDelete.map(edge => edge.id);
+    setEdges(eds => eds.filter(edge => !edgeIds.includes(edge.id)));
   }, [setEdges]);
   
   const handleSaveFlow = async () => {
@@ -275,39 +303,23 @@ export default function Project() {
     handleUpdateProject({ description: newDescription });
     setEditingDescription(false);
   };
-
-  const handleUpdateNodeData = (nodeId: string, nodeData: {label?: string, description?: string}) => {
-    setNodes(nds => 
-      nds.map(node => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              ...nodeData
-            }
-          };
-        }
-        return node;
-      })
-    );
-  };
   
-  // Create a new custom node
-  const addCustomNode = () => {
+  // Create a new note node
+  const addNoteNode = () => {
     const newNodeId = `node-${nodes.length + 1}`;
     const newNode = {
       id: newNodeId,
-      type: 'custom',
+      type: 'note',
       position: { 
         x: Math.random() * 300 + 50, 
         y: Math.random() * 300 + 50 
       },
       data: { 
-        label: 'New Node', 
+        label: 'New Note', 
         description: 'Click to edit description',
         onLabelChange: (id: string, label: string) => handleUpdateNodeData(id, { label }),
-        onDescriptionChange: (id: string, description: string) => handleUpdateNodeData(id, { description })
+        onDescriptionChange: (id: string, description: string) => handleUpdateNodeData(id, { description }),
+        onDelete: handleDeleteNode
       }
     };
     
@@ -477,30 +489,21 @@ export default function Project() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onNodesDelete={onNodesDelete}
+              onEdgesDelete={onEdgesDelete}
+              deleteKeyCode="Delete"
+              multiSelectionKeyCode="Shift"
               fitView
             >
               <Controls />
               <MiniMap />
               <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-              <Panel position="top-right" className="flex gap-2">
+              <Panel position="top-right">
                 <button 
-                  className="px-3 py-1 bg-purple-600 text-white text-sm rounded"
-                  onClick={() => {
-                    const newNode = {
-                      id: `${nodes.length + 1}`,
-                      data: { label: `Node ${nodes.length + 1}` },
-                      position: { x: Math.random() * 400, y: Math.random() * 400 },
-                    };
-                    setNodes((nds) => [...nds, newNode]);
-                  }}
+                  className="px-3 py-1 bg-gray-700 text-white text-sm rounded"
+                  onClick={addNoteNode}
                 >
-                  Add Node
-                </button>
-                <button 
-                  className="px-3 py-1 bg-green-600 text-white text-sm rounded"
-                  onClick={addCustomNode}
-                >
-                  Add Custom Node
+                  Add Note
                 </button>
               </Panel>
             </ReactFlow>

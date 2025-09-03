@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, DateTime, Float
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, DateTime, Float, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -91,6 +91,25 @@ class ProjectFlow(Base):
             "project_id": self.project_id,
             "flow": self.flow,
             "last_updated": self.last_updated
+        }
+
+class NodeImage(Base):
+    __tablename__ = 'node_images'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    node_id = Column(String(100), nullable=False)  # Node ID from React Flow
+    image_data = Column(Text, nullable=False)  # Base64 encoded image
+    created_at = Column(String, default=lambda: str(datetime.datetime.now()))
+    updated_at = Column(String, default=lambda: str(datetime.datetime.now()))
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "node_id": self.node_id,
+            "image_data": self.image_data,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
         }
 
 class DBSession:
@@ -275,3 +294,60 @@ class DBSession:
         self.session.delete(project)  # This will cascade delete associated tags
         self.session.commit()
         return True
+
+# -----------------------------------------------------------------------------
+# Node Image methods
+    def save_node_image(self, user_id, node_id, image_data):
+        try:
+            # Check if image already exists for this node
+            existing_image = self.session.query(NodeImage).filter_by(
+                user_id=user_id, 
+                node_id=node_id
+            ).first()
+            
+            if existing_image:
+                # Update existing image
+                existing_image.image_data = image_data
+                existing_image.updated_at = str(datetime.datetime.now())
+            else:
+                # Create new image record
+                new_image = NodeImage(
+                    user_id=user_id,
+                    node_id=node_id,
+                    image_data=image_data
+                )
+                self.session.add(new_image)
+            
+            self.session.commit()
+            return True, "Image saved successfully"
+            
+        except Exception as e:
+            self.session.rollback()
+            return False, f"Failed to save image: {str(e)}"
+    
+    def get_node_image(self, user_id, node_id):
+        image = self.session.query(NodeImage).filter_by(
+            user_id=user_id, 
+            node_id=node_id
+        ).first()
+        
+        if image:
+            return image.to_dict()
+        return None
+    
+    def delete_node_image(self, user_id, node_id):
+        try:
+            image = self.session.query(NodeImage).filter_by(
+                user_id=user_id, 
+                node_id=node_id
+            ).first()
+            
+            if image:
+                self.session.delete(image)
+                self.session.commit()
+                return True
+            return False
+            
+        except Exception as e:
+            self.session.rollback()
+            return False

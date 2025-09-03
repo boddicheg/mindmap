@@ -13,15 +13,18 @@ import {
   Panel,
   addEdge,
   BackgroundVariant,
-  Connection
+  Connection,
+  ColorMode
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import authService from '../services/authService';
 import Note from '../components/nodes/Note';
+import Image from '../components/nodes/Image';
 
 // Node types definition
 const nodeTypes = {
   note: Note,
+  image: Image,
 };
 
 // Initial nodes and edges for the flow will be created in the component
@@ -52,6 +55,7 @@ export default function Project() {
   const [editingDescription, setEditingDescription] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [colorMode, setColorMode] = useState<ColorMode>('dark');
   
   // React Flow states
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -67,7 +71,7 @@ export default function Project() {
   }, [setNodes, setEdges]);
 
   // Handler for node data updates
-  const handleUpdateNodeData = useCallback((nodeId: string, nodeData: {label?: string, description?: string}) => {
+  const handleUpdateNodeData = useCallback((nodeId: string, nodeData: {label?: string, description?: string, imageBase64?: string}) => {
     console.log('Updating node:', nodeId, nodeData);
     setNodes(nds => 
       nds.map(node => {
@@ -125,6 +129,7 @@ export default function Project() {
                 ...node.data,
                 onLabelChange: (id: string, label: string) => handleUpdateNodeData(id, { label }),
                 onDescriptionChange: (id: string, description: string) => handleUpdateNodeData(id, { description }),
+                onImageChange: (id: string, imageData: string) => handleUpdateNodeData(id, { imageBase64: imageData }),
                 onDelete: handleDeleteNode
               }
             }));
@@ -325,6 +330,34 @@ export default function Project() {
     
     setNodes(nds => [...nds, newNode]);
   };
+
+  // Create a new image node
+  const addImageNode = () => {
+    const newNodeId = `image-${nodes.length + 1}`;
+    const newNode = {
+      id: newNodeId,
+      type: 'image',
+      position: { 
+        x: Math.random() * 300 + 50, 
+        y: Math.random() * 300 + 50 
+      },
+      data: { 
+        label: 'New Image',
+        onLabelChange: (id: string, label: string) => handleUpdateNodeData(id, { label }),
+        onImageChange: (id: string, imageData: string) => handleUpdateNodeData(id, { imageBase64: imageData }),
+        onDelete: handleDeleteNode
+      }
+    };
+    
+    setNodes(nds => [...nds, newNode]);
+  };
+
+  // Toggle color mode
+  const toggleColorMode = () => {
+    setColorMode(current => current === 'dark' ? 'light' : 'dark');
+  };
+
+
   
   if (loading) {
     return (
@@ -493,17 +526,70 @@ export default function Project() {
               onEdgesDelete={onEdgesDelete}
               deleteKeyCode="Delete"
               multiSelectionKeyCode="Shift"
+              colorMode={colorMode}
               fitView
             >
               <Controls />
               <MiniMap />
               <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-              <Panel position="top-right">
+              <Panel position="top-right" className="flex gap-2">
                 <button 
-                  className="px-3 py-1 bg-gray-700 text-white text-sm rounded"
+                  className="px-3 py-1 bg-gray-700 text-white text-sm rounded hover:bg-gray-600 transition-colors"
                   onClick={addNoteNode}
                 >
                   Add Note
+                </button>
+                <button 
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                  onClick={addImageNode}
+                >
+                  Add Image
+                </button>
+                <button 
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                  onClick={() => {
+                    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+                    if (!viewport) return;
+                    
+                    import('html-to-image').then(({ toPng }) => {
+                      toPng(viewport, {
+                        backgroundColor: colorMode === 'light' ? '#ffffff' : '#1a1a1a',
+                        width: 1024,
+                        height: 768,
+                      }).then((dataUrl) => {
+                        const a = document.createElement('a');
+                        a.setAttribute('download', 'mindmap.png');
+                        a.setAttribute('href', dataUrl);
+                        a.click();
+                      });
+                    });
+                  }}
+                  title="Download mindmap as image"
+                >
+                  <div className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download
+                  </div>
+                </button>
+                <button 
+                  className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
+                  onClick={toggleColorMode}
+                  title={`Switch to ${colorMode === 'dark' ? 'light' : 'dark'} mode`}
+                >
+                  <div className="flex items-center gap-1">
+                    {colorMode === 'dark' ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                      </svg>
+                    )}
+                    {colorMode === 'dark' ? 'Light' : 'Dark'}
+                  </div>
                 </button>
               </Panel>
             </ReactFlow>

@@ -202,6 +202,32 @@ def delete_project(project_id):
     
     return jsonify({'message': 'Project deleted successfully'}), 200
 
+# Image upload route
+@app.route('/api/upload-image', methods=['POST'])
+@token_required
+def upload_image():
+    user_id = request.current_user['id']
+    data = request.get_json()
+    
+    if 'nodeId' not in data or 'imageData' not in data:
+        return jsonify({'error': 'nodeId and imageData are required'}), 400
+    
+    node_id = data['nodeId']
+    image_data = data['imageData']
+    
+    # Validate base64 image data
+    if not image_data.startswith('data:image/'):
+        return jsonify({'error': 'Invalid image data format'}), 400
+    
+    # Store image in database
+    from auth import db
+    success, message = db.save_node_image(user_id, node_id, image_data)
+    
+    if not success:
+        return jsonify({'error': message}), 400
+    
+    return jsonify({'message': 'Image uploaded successfully', 'imageData': image_data}), 200
+
 # Catch all route to handle client-side routing
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

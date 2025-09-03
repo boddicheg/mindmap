@@ -3,10 +3,22 @@
   "version": "1.0.0",
   "description": "Management tool for node-based maps and interactive diagrams",
   "scripts": {
-    "start": "concurrently \"npm run frontend\" \"npm run backend\"",
-    "frontend": "cd app && npm run build -- --watch",
-    "backend": "cd backend && export FLASK_DEBUG=1 && python app.py",
-    "install": "cd app && npm install"
+    "start": "concurrently --names \"FRONTEND,RUST\" --prefix-colors \"cyan,magenta\" \"npm run frontend:dev\" \"npm run backend:rust\"",
+    "start:python": "concurrently --names \"FRONTEND,PYTHON\" --prefix-colors \"cyan,yellow\" \"npm run frontend:dev\" \"npm run backend:python\"",
+    "start:rust": "concurrently --names \"FRONTEND,RUST\" --prefix-colors \"cyan,magenta\" \"npm run frontend:dev\" \"npm run backend:rust\"",
+    "stop": "pkill -f 'cargo run' && pkill -f 'npm run backend:rust' && pkill -f 'concurrently' && sleep 1 && lsof -ti:1337 | xargs -r kill -9",
+    "stop:rust": "pkill -f 'cargo run' && pkill -f 'npm run backend:rust'",
+    "frontend:dev": "cd app && npm run dev",
+    "frontend:build": "cd app && npm run build",
+    "frontend:build:watch": "cd app && npm run build -- --watch",
+    "backend:rust": "cd backend-rust && DATABASE_URL=sqlite:./db.sqlite SECRET_KEY=mindmaps_secret_key cargo run",
+    "backend:python": "cd backend && export FLASK_DEBUG=1 && python app.py",
+    "backend:rust:release": "cd backend-rust && DATABASE_URL=sqlite:./db.sqlite SECRET_KEY=mindmaps_secret_key cargo run --release",
+    "test:backend": "./test_rust_backend.sh",
+    "test:backend:simple": "python3 test_simple.py",
+    "install:all": "npm install && cd app && npm install",
+    "build": "cd app && npm run build",
+    "clean": "cd app && rm -rf dist node_modules && cd ../backend-rust && cargo clean"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

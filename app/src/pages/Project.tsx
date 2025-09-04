@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import authService from '../services/authService';
+import { TauriService } from '../services/tauriService';
 import Note from '../components/nodes/Note';
 import Image from '../components/nodes/Image';
 
@@ -32,10 +33,11 @@ const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 interface ProjectData {
-  id: string;
+  id: number;
   name: string;
-  description: string;
+  description?: string;
   is_private: boolean;
+  user_id: number;
   created_at: string;
   tags: string[];
 }
@@ -45,6 +47,9 @@ interface ProjectData {
 export default function Project() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  
+  // Convert projectId to number for Tauri API calls
+  const projectIdNum = projectId ? parseInt(projectId) : null;
   
   const [project, setProject] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,8 +99,8 @@ export default function Project() {
 
   
   // Function to fetch project flow data
-  const fetchProjectFlow = useCallback(async (projectId: string) => {
-    if (!projectId) return;
+  const fetchProjectFlow = useCallback(async () => {
+    if (!projectIdNum) return;
 
     try {
       const token = authService.getToken();
@@ -105,17 +110,7 @@ export default function Project() {
         return;
       }
       
-      const response = await fetch(`/api/projects/${projectId}/flow`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch project flow data');
-      }
-      
-      const data = await response.json();
+      const data = await TauriService.getProjectFlow(token, projectIdNum);
       
       // If flow data exists, parse and set it
       if (data && data.flow) {
@@ -144,10 +139,10 @@ export default function Project() {
     } catch (error) {
       console.error('Error fetching project flow:', error);
     }
-  }, [navigate, setNodes, setEdges, handleUpdateNodeData, handleDeleteNode]);
+  }, [navigate, setNodes, setEdges, handleUpdateNodeData, handleDeleteNode, projectIdNum]);
   
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectIdNum) return;
     
     const fetchProject = async () => {
       try {
@@ -159,29 +154,13 @@ export default function Project() {
           return;
         }
         
-        const response = await fetch(`/api/projects/${projectId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            authService.logout();
-            return;
-          } else if (response.status === 404) {
-            throw new Error('Project not found');
-          }
-          throw new Error('Failed to fetch project');
-        }
-        
-        const data = await response.json();
+        const data = await TauriService.getProject(token, projectIdNum);
         setProject(data);
         setNewName(data.name);
         setNewDescription(data.description || '');
         
         // Fetch flow data
-        await fetchProjectFlow(projectId);
+        await fetchProjectFlow();
       } catch (error) {
         console.error('Error fetching project:', error);
         setError(error instanceof Error ? error.message : 'Failed to load project');
@@ -191,7 +170,7 @@ export default function Project() {
     };
     
     fetchProject();
-  }, [projectId, navigate, fetchProjectFlow]);
+  }, [projectIdNum, navigate, fetchProjectFlow]);
   
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge({ ...params, animated: true }, eds));
@@ -221,26 +200,18 @@ export default function Project() {
       setSaveSuccess('');
       const token = authService.getToken();
       
+      if (!token) {
+        authService.logout();
+        return;
+      }
+      
       // Create a serializable version of the flow
       const flowData = {
         nodes,
         edges
       };
       
-      const response = await fetch(`/api/projects/${projectId}/flow`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          flow: JSON.stringify(flowData)
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save flow');
-      }
+      await TauriService.saveProjectFlow(token, projectIdNum!, { flow: JSON.stringify(flowData) });
       
       setSaveSuccess('Flow saved successfully!');
       
@@ -267,20 +238,12 @@ export default function Project() {
     try {
       const token = authService.getToken();
       
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update project');
+      if (!token) {
+        authService.logout();
+        return;
       }
       
-      const updatedProject = await response.json();
+      const updatedProject = await TauriService.updateProject(token, projectIdNum!, updateData);
       setProject(updatedProject);
       
       // Show success message briefly

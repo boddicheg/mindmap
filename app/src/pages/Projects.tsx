@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import { TauriService } from '../services/tauriService';
 import ProjectModal from '../components/ProjectModal';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface Project {
-  id: string;
+  id: number;
   name: string;
-  description: string;
+  description?: string;
   created_at: string;
-  updatedAt?: string;
+  user_id: number;
   is_private: boolean;
   tags: string[];
 }
@@ -27,22 +28,13 @@ export default function Projects() {
     try {
       setLoading(true);
       const token = authService.getToken();
-      const response = await fetch('/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          // If unauthorized, redirect to login
-          authService.logout();
-          return;
-        }
-        throw new Error('Failed to fetch projects');
+      if (!token) {
+        authService.logout();
+        return;
       }
       
-      const data = await response.json();
+      const data = await TauriService.getProjects(token);
       setProjects(data);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -65,18 +57,13 @@ export default function Projects() {
     try {
       setLoading(true);
       const token = authService.getToken();
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(projectData)
-      });
       
-      if (!response.ok) {
-        throw new Error('Failed to create project');
+      if (!token) {
+        authService.logout();
+        return;
       }
+      
+      await TauriService.createProject(token, projectData);
       
       // Close the modal and refresh projects
       setIsModalOpen(false);
@@ -89,23 +76,20 @@ export default function Projects() {
     }
   };
 
-  const handleDeleteProject = async (e: React.MouseEvent, projectId: string) => {
+  const handleDeleteProject = async (e: React.MouseEvent, projectId: number) => {
     e.preventDefault(); // Prevent navigation to project detail
     e.stopPropagation(); // Prevent event bubbling
     
     try {
       setLoading(true);
       const token = authService.getToken();
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
       
-      if (!response.ok) {
-        throw new Error('Failed to delete project');
+      if (!token) {
+        authService.logout();
+        return;
       }
+      
+      await TauriService.deleteProject(token, projectId);
       
       // Refresh projects list after deletion
       fetchProjects();
@@ -120,7 +104,7 @@ export default function Projects() {
   // Filter projects based on search query
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (project.tags && project.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 

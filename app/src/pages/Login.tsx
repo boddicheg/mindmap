@@ -81,13 +81,31 @@ const Login = () => {
             </div>
           </div>
 
-          <div>
+          <div className="space-y-3">
             <button
               type="submit"
               disabled={isLoading}
               className="group relative flex w-full justify-center rounded-md bg-purple-600 py-2 px-3 text-sm font-semibold text-white hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 disabled:bg-purple-400"
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const { TauriService } = await import('../services/tauriService');
+                  console.log('Current Tauri API status:', TauriService.debug());
+                  const refreshed = TauriService.refresh();
+                  console.log('Tauri API refresh result:', refreshed);
+                  console.log('New Tauri API status:', TauriService.debug());
+                } catch (error) {
+                  console.error('Error refreshing Tauri API:', error);
+                }
+              }}
+              className="w-full rounded-md bg-gray-500 py-2 px-3 text-sm font-semibold text-white hover:bg-gray-400"
+            >
+              Debug Tauri API
             </button>
           </div>
         </form>

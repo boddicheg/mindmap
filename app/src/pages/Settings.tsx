@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import { TauriService } from '../services/tauriService';
 import { UserCircleIcon } from '@heroicons/react/24/solid';
 
 interface User {
@@ -33,21 +34,7 @@ export default function Settings() {
         return;
       }
       
-      const response = await fetch('/api/user/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          authService.logout();
-          return;
-        }
-        throw new Error('Failed to fetch user profile');
-      }
-      
-      const userData = await response.json();
+      const userData = await TauriService.getProfile(token);
       setUser(userData);
       setEmail(userData.email);
     } catch (error) {
@@ -75,20 +62,12 @@ export default function Settings() {
       setUpdating(true);
       const token = authService.getToken();
       
-      const response = await fetch('/api/user/update-email', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update email');
+      if (!token) {
+        authService.logout();
+        return;
       }
+      
+      const data = await TauriService.updateEmail(token, email);
       
       // Update user data
       setUser(data.user);
@@ -113,17 +92,12 @@ export default function Settings() {
       setUpdating(true);
       const token = authService.getToken();
       
-      const response = await fetch('/api/user/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete account');
+      if (!token) {
+        authService.logout();
+        return;
       }
+      
+      await TauriService.deleteAccount(token);
       
       // Logout and redirect to login page
       authService.logout();

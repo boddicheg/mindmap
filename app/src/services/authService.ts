@@ -16,43 +16,45 @@ class AuthService {
   private userKey = 'user';
 
   async login(email: string, password: string): Promise<User> {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to login');
+    try {
+      // Import TauriService dynamically to avoid circular dependencies
+      const { TauriService } = await import('./tauriService');
+      
+      // Debug Tauri API status
+      console.log('Tauri API Debug:', TauriService.debug());
+      
+      // Wait for Tauri API to be available
+      const apiAvailable = await TauriService.waitForAPI(3000);
+      if (!apiAvailable) {
+        throw new Error('Tauri API not available after waiting. Please refresh the app.');
+      }
+      
+      const data = await TauriService.login({ email, password });
+      this.setToken(data.token);
+      this.setUser(data.user);
+      return data.user;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to login');
     }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.token);
-    this.setUser(data.user);
-    return data.user;
   }
 
   async register(username: string, email: string, password: string): Promise<User> {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to register');
+    try {
+      // Import TauriService dynamically to avoid circular dependencies
+      const { TauriService } = await import('./tauriService');
+      
+      // Debug Tauri API status
+      console.log('Tauri API Debug:', TauriService.debug());
+      
+      const data = await TauriService.register({ username, email, password });
+      this.setToken(data.token);
+      this.setUser(data.user);
+      return data.user;
+    } catch (error) {
+      console.error('Register error:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to register');
     }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.token);
-    this.setUser(data.user);
-    return data.user;
   }
 
   logout(): void {

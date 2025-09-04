@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import authService from '../../services/authService';
+import { TauriService } from '../../services/tauriService';
 
 interface ImageData {
   label?: string;
@@ -88,22 +89,10 @@ export default function Image({ id, data, isConnectable }: NodeProps) {
             throw new Error('Authentication token not found. Please log in again.');
           }
           
-          const response = await fetch('/api/upload-image', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              nodeId: id,
-              imageData: base64Data
-            })
+          await TauriService.uploadImage(token, {
+            nodeId: id,
+            imageData: base64Data
           });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-            throw new Error(errorData.error || `Upload failed with status ${response.status}`);
-          }
 
           clearInterval(progressInterval);
           setUploadProgress(100);

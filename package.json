@@ -18,9 +18,13 @@
     "test:backend:simple": "python3 test_simple.py",
     "install:all": "npm install && cd app && npm install",
     "build": "cd app && npm run build",
-    "clean": "cd app && rm -rf dist node_modules && cd ../backend-rust && cargo clean"
+    "clean": "cd app && rm -rf dist node_modules && cd ..image.png && cargo clean",
+    "tauri": "cd src-tauri && cargo tauri",
+    "tauri:dev": "cd src-tauri && DATABASE_URL=sqlite:./db.sqlite SECRET_KEY=mindmaps_secret_key cargo tauri dev",
+    "tauri:build": "cd src-tauri && cargo tauri build"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "@tauri-apps/cli": "^2.0.0"
   }
 }

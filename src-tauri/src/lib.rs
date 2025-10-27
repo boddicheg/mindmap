@@ -149,7 +149,7 @@ struct Claims {
 // Database setup
 async fn init_db() -> Result<SqlitePool> {
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "sqlite:../backend-rust/db.sqlite".to_string());
+        .unwrap_or_else(|_| "sqlite:./db.sqlite".to_string());
 
     let pool = SqlitePoolOptions::new()
         .max_connections(10)

@@ -33,7 +33,9 @@ function initTauriAPI() {
 }
 
 // Try to initialize immediately
-initTauriAPI();
+console.log('Initializing Tauri API...');
+const initialized = initTauriAPI();
+console.log('Tauri API initialization result:', initialized);
 
 // Also try to initialize when the window loads (in case it's not ready yet)
 if (typeof window !== 'undefined') {
@@ -191,10 +193,23 @@ export class TauriService {
 
   // Projects
   static async getProjects(token: string): Promise<ProjectResponse[]> {
+    console.log('TauriService.getProjects called with token:', token ? 'present' : 'missing');
+    console.log('invoke function available:', !!invoke);
+    console.log('window.__TAURI__ available:', !!(window as any).__TAURI__);
+    
     if (!invoke) {
+      console.error('Tauri API not available. Current window object keys:', Object.keys(window));
       throw new Error('Tauri API not available. Make sure you are running this in a Tauri desktop app.');
     }
-    return invoke('get_projects', { token });
+    
+    try {
+      const result = await invoke('get_projects', { token });
+      console.log('get_projects result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error calling get_projects:', error);
+      throw error;
+    }
   }
 
   static async createProject(token: string, data: CreateProjectRequest): Promise<ProjectResponse> {

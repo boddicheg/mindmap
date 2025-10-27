@@ -20,7 +20,7 @@
     "build": "cd app && npm run build",
     "clean": "cd app && rm -rf dist node_modules && cd ..image.png && cargo clean",
     "tauri": "cd src-tauri && cargo tauri",
-    "tauri:dev": "cd src-tauri && DATABASE_URL=sqlite:./db.sqlite SECRET_KEY=mindmaps_secret_key cargo tauri dev",
+    "tauri:dev": "cd src-tauri && DATABASE_URL=sqlite:./db.sqlite SECRET_KEY=mindmaps_secret_key npx @tauri-apps/cli dev",
     "tauri:build": "cd src-tauri && cargo tauri build"
   },
   "devDependencies": {
